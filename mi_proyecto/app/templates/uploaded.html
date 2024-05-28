@@ -1,11 +1,15 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="utf-8">
-    <title>Gráfico generado</title>
-  </head>
-  <body>
-    <h1>Gráfico generado</h1>
-    <img src="{{ url_for('static', filename='graph.png') }}" alt="Gráfico">
-  </body>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uploaded CSV File</title>
+</head>
+<body>
+    <h1>Uploaded CSV File: {{ filename }}</h1>
+    <!-- Display the graph -->
+    <iframe src="{{ graph_url }}" width="800" height="600"></iframe>
+    <!-- Provide link to download CSV if needed -->
+    <p><a href="{{ url_for('uploaded_file', filename=filename) }}">Download CSV</a></p>
+</body>
 </html>
