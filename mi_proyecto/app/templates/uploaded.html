@@ -7,8 +7,10 @@
 </head>
 <body>
     <h1>Uploaded CSV File: {{ filename }}</h1>
-    <!-- Display the graph -->
-    <iframe src="{{ graph_url }}" width="800" height="600"></iframe>
+    <!-- Display the graphs -->
+    {% for graph_file in graph_files %}
+    <iframe src="{{ graph_file }}" width="800" height="600"></iframe>
+    {% endfor %}
     <!-- Provide link to download CSV if needed -->
     <p><a href="{{ url_for('uploaded_file', filename=filename) }}">Download CSV</a></p>
 </body>

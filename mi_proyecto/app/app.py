@@ -33,23 +33,22 @@ def upload_file():
 
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
-    graph_url = url_for('static', filename='graph_' + filename[:-4] + '.html')
-    return render_template('uploaded.html', filename=filename, graph_url=graph_url)
+    graph_files = []
+    for file in os.listdir('static'):
+        if file.startswith('graph_' + filename[:-4]):
+            graph_files.append(url_for('static', filename=file))
+    return render_template('uploaded.html', filename=filename, graph_files=graph_files)
 
 def process_csv(file_path):
     data = pd.read_csv(file_path)
-    # Aquí podrías realizar más procesamiento de datos si es necesario
     return data
 
 def generate_graph(data, filename):
-    plot_data = []
     for column in data.columns:
         trace = go.Histogram(x=data[column], name=column)
-        plot_data.append(trace)
-    
-    layout = go.Layout(title='Histograma', xaxis=dict(title='Valor'), yaxis=dict(title='Frecuencia'))
-    fig = go.Figure(data=plot_data, layout=layout)
-    fig.write_html("static/graph_" + filename[:-4] + ".html")  # Guardar el gráfico como HTML
+        layout = go.Layout(title=f'Histograma de {column}', xaxis=dict(title='Valor'), yaxis=dict(title='Frecuencia'))
+        fig = go.Figure(data=[trace], layout=layout)
+        fig.write_html(f"static/graph_{filename[:-4]}_{column}.html")  # Guardar el gráfico como HTML
 
 if __name__ == "__main__":
     app.run(debug=True)
