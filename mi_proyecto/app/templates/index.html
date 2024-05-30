@@ -1,14 +1,56 @@
 <!doctype html>
 <html lang="en">
-  <head>
+<head>
     <meta charset="utf-8">
     <title>Subir archivo CSV</title>
-  </head>
-  <body>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            padding: 20px;
+            text-align: center;
+        }
+        h1 {
+            color: #333;
+        }
+        form {
+            margin-top: 20px;
+        }
+        input[type="file"] {
+            padding: 10px;
+            border: 2px solid #007bff;
+            border-radius: 5px;
+            background-color: #fff;
+            font-size: 16px;
+            color: #333;
+            transition: border-color 0.3s;
+        }
+        input[type="file"]:focus {
+            outline: none;
+            border-color: #0056b3;
+        }
+        input[type="submit"] {
+            margin-top: 10px;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        input[type="submit"]:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
     <h1>Subir archivo CSV</h1>
     <form method="post" action="/upload" enctype="multipart/form-data">
-      <input type="file" name="file">
-      <input type="submit" value="Subir">
+        <input type="file" name="file">
+        <br>
+        <input type="submit" value="Subir">
     </form>
-  </body>
+</body>
 </html>

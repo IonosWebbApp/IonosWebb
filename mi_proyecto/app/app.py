@@ -70,12 +70,34 @@ def generate_graphs(data, filename, descriptions):
             continue
 
         # Si no se ha representado antes, generar el gráfico y agregar la columna al conjunto de datos generados
-        trace = go.Histogram(x=data[column], name=column)
-        layout = go.Layout(title=f'Histogram of {column}', xaxis=dict(title='Value'), yaxis=dict(title='Frequency'))
+        trace = go.Histogram(
+            x=data[column],
+            name=column,
+            marker=dict(color=next_color())
+        )
+        layout = go.Layout(
+            title=f'Histogram of {column}',
+            xaxis=dict(title='Value'),
+            yaxis=dict(title='Frequency'),
+            barmode='overlay',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1)
+        )
         fig = go.Figure(data=[trace], layout=layout)
         fig.write_html(os.path.join(app.config['GRAPH_FOLDER'], f"graph_{filename[:-4]}_{column}.html"))
 
         generated_graphs.add(tuple(data[column].to_list()))  # Agregar la lista de datos al conjunto de datos generados
+
+color_idx = 0
+def next_color():
+    global color_idx
+    colors = [
+        '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', 
+        '#9467bd', '#8c564b', '#e377c2', '#7f7f7f', 
+        '#bcbd22', '#17becf'
+    ]
+    color = colors[color_idx % len(colors)]
+    color_idx += 1
+    return color
 
 if __name__ == "__main__":
     app.run(debug=True)

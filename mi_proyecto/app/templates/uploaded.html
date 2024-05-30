@@ -4,14 +4,47 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Uploaded CSV File</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        h1 {
+            color: #333;
+        }
+        .graph-container {
+            margin-bottom: 20px;
+        }
+        iframe {
+            border: none;
+            width: 100%;
+            height: 600px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            transition: background-color 0.3s;
+        }
+        .button:hover {
+            background-color: #0056b3;
+        }
+    </style>
 </head>
 <body>
     <h1>Uploaded CSV File: {{ filename }}</h1>
     <!-- Display the graphs -->
     {% for graph_file in graph_files %}
-    <iframe src="{{ graph_file }}" width="800" height="600"></iframe>
+    <div class="graph-container">
+        <iframe src="{{ graph_file }}" width="800" height="600"></iframe>
+    </div>
     {% endfor %}
-    <!-- Provide link to download CSV if needed -->
-    <p><a href="{{ url_for('uploaded_file', filename=filename) }}">Download CSV</a></p>
-</body>
+    <!-- Button to go back -->
+    <a class="button" href="javascript:history.back()">Go Back</a>
+    <!-- Provide link to download all graphs -->
+    <p><a class="button" href="{{ url_for('download_graphs', filename=filename) }}">Download All Graphs as ZIP</a></p>
+   </body>
 </html>
