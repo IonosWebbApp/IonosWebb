@@ -12,11 +12,21 @@ app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
 ALLOWED_EXTENSIONS = {'csv'}
 
+# Crear carpetas si no existen
+if not os.path.exists(app.config['UPLOAD_FOLDER']):
+    os.makedirs(app.config['UPLOAD_FOLDER'])
+if not os.path.exists('static'):
+    os.makedirs('static')
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def process_csv(file_path):
-    data = pd.read_csv(file_path)
+    try:
+        data = pd.read_csv(file_path)
+    except Exception as e:
+        return None, str(e), 0, 0, {}, {}, {}, {}, {}
+
     dates = []
     num_equity_actions = 0
     num_equity_options = 0
@@ -24,6 +34,8 @@ def process_csv(file_path):
     symbol_total_stock = {}
     symbol_total_income = {}
     symbol_total_sum = {}
+    symbol_dividends = {}
+    
     for column in data.columns:
         if data[column].dtype == 'object':
             try:
@@ -41,6 +53,18 @@ def process_csv(file_path):
                     dates.append(total_days)  # Añadir el total de días transcurridos
             except ValueError:
                 pass
+                
+    # Filtrar y sumar los valores de la columna "Value" que son "Dividend" por símbolo
+    if 'Sub Type' in data.columns and 'Symbol' in data.columns and 'Value' in data.columns:
+        dividends_data = data[data['Sub Type'] == 'Dividend']
+        for _, row in dividends_data.iterrows():
+            symbol = row['Symbol']
+            value = float(row['Value'])
+            if symbol in symbol_dividends:
+                symbol_dividends[symbol] += value
+            else:
+                symbol_dividends[symbol] = value
+
     # Calcular el número de acciones del tipo "Equity" entre las fechas de "First Date" y "Last Date"
     if 'Instrument Type' in data.columns:
         equity_data = data[(data['Instrument Type'] == 'Equity') & (pd.to_datetime(data['Date']) >= dates[0]) & (pd.to_datetime(data['Date']) <= dates[1])]
@@ -67,7 +91,7 @@ def process_csv(file_path):
                     symbol_total_sum[symbol] = quantity + income
             except ValueError:
                 pass
-    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum
+    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends
 
 def get_equity_symbols(data):
     if 'Symbol' in data.columns and 'Instrument Type' in data.columns:
@@ -96,13 +120,14 @@ def upload_file():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    _, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum = process_csv(file_path)
-    data = pd.read_csv(file_path)
+    data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends = process_csv(file_path)
+    if data is None:
+        return f"Error processing file: {dates}"  # 'dates' contains the error message in este caso
     equity_symbols = get_equity_symbols(data)
     # Formatear las fechas en el formato deseado
     for i in range(2):
         dates[i] = dates[i].strftime('%Y-%m-%d')
-    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols)
+    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends)
 
 @app.route('/download/<filename>')
 def download_csv(filename):

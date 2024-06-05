@@ -68,7 +68,9 @@
                 <th>Acciones Operadas</th>
                 <th>Cantidad</th>
                 <th>Total Stock</th>
+                <th>Ingresos Totales</th>
                 <th>Suma Total</th>
+                <th>Total Div</th>
             </tr>
         </thead>
         <tbody>
@@ -77,15 +79,17 @@
                 <td>{{ symbol }}</td>
                 <td>{{ count }}</td>
                 <td>{{ symbol_total_stock[symbol]|round(2) }}</td>
-                <td>${{ symbol_total_sum[symbol]|round(2) }}</td> <!-- Agregar el símbolo de dólar -->
+                <td>{{ symbol_total_income[symbol]|round(2) }}</td>
+                <td>{{ symbol_total_sum[symbol]|round(2) }}</td>
+                <td>{{ symbol_dividends[symbol]|round(2) if symbol in symbol_dividends else '' }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
     
-    <!-- Provide link to download the CSV file -->
+    <!-- Proporcionar enlace para descargar el archivo CSV -->
     <p><a href="{{ url_for('download_csv', filename=filename) }}" class="btn">Download CSV</a></p>
-    <!-- Provide link to go back to the upload page -->
+    <!-- Proporcionar enlace para volver a la página de carga -->
     <p><a href="{{ url_for('index') }}" class="btn">Back</a></p>
 </body>
 </html>
