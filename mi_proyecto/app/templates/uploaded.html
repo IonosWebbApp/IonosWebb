@@ -68,7 +68,6 @@
                 <th>Acciones Operadas</th>
                 <th>Cantidad</th>
                 <th>Total Stock</th>
-                <th>Ingresos Totales</th>
                 <th>Suma Total</th>
             </tr>
         </thead>
@@ -78,8 +77,7 @@
                 <td>{{ symbol }}</td>
                 <td>{{ count }}</td>
                 <td>{{ symbol_total_stock[symbol]|round(2) }}</td>
-                <td>{{ symbol_total_income[symbol]|round(2) }}</td>
-                <td>{{ symbol_total_sum[symbol]|round(2) }}</td>
+                <td>${{ symbol_total_sum[symbol]|round(2) }}</td> <!-- Agregar el símbolo de dólar -->
             </tr>
             {% endfor %}
         </tbody>
