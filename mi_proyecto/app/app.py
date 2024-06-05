@@ -7,16 +7,18 @@ import pandas as pd
 import zipfile
 import io
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 app = Flask(__name__)
 app.config['UPLOAD_FOLDER'] = 'uploads/'
+app.config['STATIC_FOLDER'] = 'static/'
 ALLOWED_EXTENSIONS = {'csv'}
 
 # Crear carpetas si no existen
 if not os.path.exists(app.config['UPLOAD_FOLDER']):
     os.makedirs(app.config['UPLOAD_FOLDER'])
-if not os.path.exists('static'):
-    os.makedirs('static')
+if not os.path.exists(app.config['STATIC_FOLDER']):
+    os.makedirs(app.config['STATIC_FOLDER'])
 
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
@@ -91,7 +93,36 @@ def process_csv(file_path):
                     symbol_total_sum[symbol] = quantity + income
             except ValueError:
                 pass
+    
+    generate_graph(symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends)
+    
     return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends
+
+def generate_graph(symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends):
+    symbols = list(symbol_counts.keys())
+    stock_values = [symbol_total_stock[symbol] for symbol in symbols]
+    income_values = [symbol_total_income[symbol] for symbol in symbols]
+    sum_values = [symbol_total_sum[symbol] for symbol in symbols]
+    dividend_values = [symbol_dividends.get(symbol, 0) for symbol in symbols]
+
+    x = range(len(symbols))
+
+    plt.figure(figsize=(10, 6))
+    plt.bar(x, stock_values, width=0.2, label='Total Stock', align='center')
+    plt.bar(x, income_values, width=0.2, label='Total Income', align='edge')
+    plt.bar(x, sum_values, width=0.2, label='Total Sum', align='edge', color='g')
+    plt.bar(x, dividend_values, width=0.2, label='Total Dividends', align='center', color='r')
+
+    plt.xlabel('Symbols')
+    plt.ylabel('Values')
+    plt.title('Equity Summary')
+    plt.xticks(x, symbols, rotation='vertical')
+    plt.legend()
+
+    plt.tight_layout()
+    plt_path = os.path.join(app.config['STATIC_FOLDER'], 'graph.png')
+    plt.savefig(plt_path)
+    plt.close()
 
 def get_equity_symbols(data):
     if 'Symbol' in data.columns and 'Instrument Type' in data.columns:
@@ -127,7 +158,8 @@ def uploaded_file(filename):
     # Formatear las fechas en el formato deseado
     for i in range(2):
         dates[i] = dates[i].strftime('%Y-%m-%d')
-    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends)
+    graph_url = url_for('static', filename='graph.png')
+    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends, graph_url=graph_url)
 
 @app.route('/download/<filename>')
 def download_csv(filename):
