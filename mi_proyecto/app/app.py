@@ -22,6 +22,8 @@ def process_csv(file_path):
     num_equity_options = 0
     symbol_counts = {}
     symbol_total_stock = {}
+    symbol_total_income = {}
+    symbol_total_sum = {}
     for column in data.columns:
         if data[column].dtype == 'object':
             try:
@@ -46,17 +48,26 @@ def process_csv(file_path):
         # Calcular el número de operaciones del tipo "Equity Option" entre las fechas de "First Date" y "Last Date"
         equity_option_data = data[(data['Instrument Type'] == 'Equity Option') & (pd.to_datetime(data['Date']) >= dates[0]) & (pd.to_datetime(data['Date']) <= dates[1])]
         num_equity_options = equity_option_data.shape[0]
-        # Calcular el conteo de símbolos y el total de stock para acciones de tipo "Equity"
+        # Calcular el conteo de símbolos, el total de stock, los ingresos totales y la suma total para acciones de tipo "Equity"
         for _, row in equity_data.iterrows():
             symbol = row['Symbol']
-            quantity = row['Quantity']
-            if symbol in symbol_counts:
-                symbol_counts[symbol] += 1
-                symbol_total_stock[symbol] += quantity
-            else:
-                symbol_counts[symbol] = 1
-                symbol_total_stock[symbol] = quantity
-    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock
+            try:
+                quantity = float(row['Quantity'])
+                average_price = float(row['Average Price'])
+                income = quantity * average_price
+                if symbol in symbol_counts:
+                    symbol_counts[symbol] += 1
+                    symbol_total_stock[symbol] += quantity
+                    symbol_total_income[symbol] += income
+                    symbol_total_sum[symbol] += (quantity + income)
+                else:
+                    symbol_counts[symbol] = 1
+                    symbol_total_stock[symbol] = quantity
+                    symbol_total_income[symbol] = income
+                    symbol_total_sum[symbol] = quantity + income
+            except ValueError:
+                pass
+    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum
 
 def get_equity_symbols(data):
     if 'Symbol' in data.columns and 'Instrument Type' in data.columns:
@@ -85,13 +96,13 @@ def upload_file():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    _, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock = process_csv(file_path)
+    _, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum = process_csv(file_path)
     data = pd.read_csv(file_path)
     equity_symbols = get_equity_symbols(data)
     # Formatear las fechas en el formato deseado
     for i in range(2):
         dates[i] = dates[i].strftime('%Y-%m-%d')
-    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, equity_symbols=equity_symbols)
+    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols)
 
 @app.route('/download/<filename>')
 def download_csv(filename):
