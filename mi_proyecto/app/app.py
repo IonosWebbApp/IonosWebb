@@ -25,19 +25,27 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def format_currency(value):
-    """Formatea un valor numérico como moneda."""
+    """Formatea un valor numérico como moneda o cantidad."""
     if value is None:
         return ""
-    return "${:,.2f}".format(value)
+    if value < 0:
+        return "({:,.2f})".format(abs(value))
+    return "{:,.2f}".format(value)
 
 app.jinja_env.filters['format_currency'] = format_currency
+
+def absolute_value(value):
+    """Devuelve el valor absoluto."""
+    return abs(value)
+
+app.jinja_env.filters['abs'] = absolute_value
 
 def process_csv(file_path):
     try:
         data = pd.read_csv(file_path)
         data = data.replace({np.nan: None})  # Reemplazar los valores "nan" por None
     except Exception as e:
-        return None, str(e), 0, 0, {}, {}, {}, {}, {}, [], []
+        return None, str(e), 0, 0, {}, {}, {}, {}, {}, [], {}, {}, {}
 
     dates = []
     num_equity_actions = 0
@@ -47,8 +55,7 @@ def process_csv(file_path):
     symbol_total_income = {}
     symbol_total_sum = {}
     symbol_dividends = {}
-    analysis_data = []
-
+    
     for column in data.columns:
         if data[column].dtype == 'object':
             try:
@@ -66,13 +73,13 @@ def process_csv(file_path):
                     dates.append(total_days)  # Añadir el total de días transcurridos
             except ValueError:
                 pass
-
+                
     # Filtrar y sumar los valores de la columna "Value" que son "Dividend" por símbolo
     if 'Sub Type' in data.columns and 'Symbol' in data.columns and 'Value' in data.columns:
         dividends_data = data[data['Sub Type'] == 'Dividend']
         for _, row in dividends_data.iterrows():
             symbol = row['Symbol']
-            value = abs(float(row['Value'])) if row['Value'] is not None else 0.0  # Convertir a valor absoluto
+            value = float(row['Value']) if row['Value'] is not None else 0.0  # No convertir a valor absoluto aquí
             if symbol in symbol_dividends:
                 symbol_dividends[symbol] += value
             else:
@@ -89,8 +96,8 @@ def process_csv(file_path):
         for _, row in equity_data.iterrows():
             symbol = row['Symbol']
             try:
-                quantity = abs(float(row['Quantity'])) if row['Quantity'] is not None else 0.0  # Convertir a valor absoluto
-                average_price = abs(float(row['Average Price'])) if row['Average Price'] is not None else 0.0  # Convertir a valor absoluto
+                quantity = float(row['Quantity']) if row['Quantity'] is not None else 0.0
+                average_price = float(row['Average Price']) if row['Average Price'] is not None else 0.0
                 income = quantity * average_price
                 if symbol in symbol_counts:
                     symbol_counts[symbol] += 1
@@ -104,16 +111,37 @@ def process_csv(file_path):
                     symbol_total_sum[symbol] = quantity + income
             except ValueError:
                 pass
-
-    if 'Instrument Type' in data.columns and 'Underlying Symbol' in data.columns and 'Quantity' in data.columns:
-        analysis_data_df = data[(data['Instrument Type'] == 'Equity Option')].copy()
-        analysis_data_df['Quantity'] = analysis_data_df['Quantity'].apply(lambda x: abs(float(x)) if x is not None else 0.0)
-        analysis_data = analysis_data_df.groupby(['Instrument Type', 'Underlying Symbol']).agg({'Quantity': 'sum'}).reset_index().to_dict('records')
     
-    total_sum_total = sum(symbol_total_sum.values())
+    total_income_sum = sum(symbol_total_income.values())
     total_dividends_sum = sum(symbol_dividends.values())
     
-    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_sum_total, total_dividends_sum, analysis_data
+    # Obtener los valores únicos de la columna "Underlying Symbol" y sus recuentos
+    underlying_symbols = data['Underlying Symbol'].dropna().unique().tolist()
+    underlying_symbol_counts = data['Underlying Symbol'].value_counts().to_dict()
+    
+    # Calcular la suma de "Value" para cada "Underlying Symbol" considerando solo valores diferentes de cero
+    data['Value'] = pd.to_numeric(data['Value'], errors='coerce').fillna(0)
+    underlying_symbol_values = {symbol: data.loc[(data['Underlying Symbol'] == symbol) & (data['Value'] != 0), 'Value'].sum() for symbol in underlying_symbols}
+    
+    # Calcular la suma de "Quantity" para cada "Underlying Symbol" considerando solo valores diferentes de cero
+    data['Quantity'] = pd.to_numeric(data['Quantity'], errors='coerce').fillna(0)
+    underlying_symbol_quantities = {symbol: int(data.loc[(data['Underlying Symbol'] == symbol) & (data['Quantity'] != 0), 'Quantity'].sum()) for symbol in underlying_symbols}
+    
+    # Calcular la suma de "Valor Global" como la suma de "Valor Total" y "Cantidad Total"
+    underlying_symbol_global_values = {symbol: underlying_symbol_values[symbol] + underlying_symbol_quantities[symbol] for symbol in underlying_symbols}
+    
+    # Calcular "Total $" para cada "Underlying Symbol" donde "Instrument Type" es diferente de "Equity"
+    total_dollar_values = {symbol: data.loc[(data['Underlying Symbol'] == symbol) & (data['Instrument Type'] != 'Equity'), 'Value'].sum() for symbol in underlying_symbols}
+    
+    # Calcular la suma total de "Valor Total" y "Cantidad Total" considerando solo valores diferentes de cero
+    total_value_sum = sum(value for value in underlying_symbol_values.values() if value != 0)
+    total_quantity_sum = sum(quantity for quantity in underlying_symbol_quantities.values() if quantity != 0)
+
+    # Calcular la suma total de "Valor Global" y "Total $"
+    total_global_value_sum = sum(underlying_symbol_global_values.values())
+    total_total_dollar_sum = sum(total_dollar_values.values())
+    
+    return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_income_sum, total_dividends_sum, underlying_symbols, underlying_symbol_counts, underlying_symbol_values, underlying_symbol_quantities, underlying_symbol_global_values, total_value_sum, total_quantity_sum, total_dollar_values, total_global_value_sum, total_total_dollar_sum
 
 def create_pie_chart(symbol_dividends, output_path):
     # Filtrar valores negativos
@@ -152,7 +180,7 @@ def upload_file():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_sum_total, total_dividends_sum, analysis_data = process_csv(file_path)
+    data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_income_sum, total_dividends_sum, underlying_symbols, underlying_symbol_counts, underlying_symbol_values, underlying_symbol_quantities, underlying_symbol_global_values, total_value_sum, total_quantity_sum, total_dollar_values, total_global_value_sum, total_total_dollar_sum = process_csv(file_path)
     if data is None:
         return f"Error processing file: {dates}"  # 'dates' contains the error message in este caso
     equity_symbols = get_equity_symbols(data)
@@ -164,7 +192,7 @@ def uploaded_file(filename):
     pie_chart_path = os.path.join(app.config['STATIC_FOLDER'], 'dividends_pie_chart.html')
     create_pie_chart(symbol_dividends, pie_chart_path)
     
-    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends, pie_chart_url=url_for('static', filename='dividends_pie_chart.html'), total_sum_total=total_sum_total, total_dividends_sum=total_dividends_sum, analysis_data=analysis_data)
+    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends, pie_chart_url=url_for('static', filename='dividends_pie_chart.html'), total_income_sum=total_income_sum, total_dividends_sum=total_dividends_sum, underlying_symbols=underlying_symbols, underlying_symbol_counts=underlying_symbol_counts, underlying_symbol_values=underlying_symbol_values, underlying_symbol_quantities=underlying_symbol_quantities, underlying_symbol_global_values=underlying_symbol_global_values, total_value_sum=total_value_sum, total_quantity_sum=total_quantity_sum, total_dollar_values=total_dollar_values, total_global_value_sum=total_global_value_sum, total_total_dollar_sum=total_total_dollar_sum)
 
 @app.route('/download/<filename>')
 def download_csv(filename):

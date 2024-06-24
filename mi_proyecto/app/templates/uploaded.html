@@ -32,6 +32,9 @@
             text-align: left;
             padding: 8px;
         }
+        .hidden-column {
+            display: none;
+        }
     </style>
 </head>
 <body>
@@ -68,8 +71,8 @@
                 <th>Acciones Operadas</th>
                 <th>Qty Operations</th>
                 <th>Qty Stocks</th>
-                
                 <th>P/L</th>
+                <th class="hidden-column">Suma Total</th>
                 <th>Dividends</th>
             </tr>
         </thead>
@@ -78,9 +81,9 @@
             <tr>
                 <td>{{ symbol }}</td>
                 <td>{{ count }}</td>
-                <td>{{ symbol_total_stock[symbol]|round(2) }}</td>
-                
-                <td>{{ symbol_total_sum[symbol]|format_currency }}</td>
+                <td>{{ symbol_total_stock[symbol]|format_currency }}</td>
+                <td>{{ symbol_total_income[symbol]|format_currency }}</td>
+                <td class="hidden-column">{{ symbol_total_sum[symbol]|abs|format_currency }}</td>
                 <td>{{ symbol_dividends[symbol]|format_currency if symbol in symbol_dividends else '' }}</td>
             </tr>
             {% endfor %}
@@ -88,31 +91,41 @@
     </table>
 
     <h2>Suma Total</h2>
-    <p>Suma Total de Suma Total: {{ total_sum_total|format_currency }}</p>
-    <p>Suma Total de Total Div: {{ total_dividends_sum|format_currency }}</p>
+    <p>Suma Total de P/L: {{ total_income_sum|format_currency }}</p>
+    <p>Suma Total de Dividends: {{ total_dividends_sum|format_currency }}</p>
     
     <h2>Distribución de Dividendos por Símbolo</h2>
     <iframe src="{{ pie_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
-
-    <h2>Análisis</h2>
+    
+    <h2>Total 2</h2>
     <table>
         <thead>
             <tr>
-                <th>Instrument Type</th>
-                <th>Underlying Symbol</th>
-                <th>Quantity</th>
+                <th>Operaciones Operadas</th>
+                <th>Qty</th>
+                <th class="hidden-column">P/L</th>
+                <th class="hidden-column">Cantidad Total</th>
+                <th>P/L</th>
+                <th>$</th>
             </tr>
         </thead>
         <tbody>
-            {% for row in analysis_data %}
+            {% for symbol in underlying_symbols %}
             <tr>
-                <td>{{ row['Instrument Type'] }}</td>
-                <td>{{ row['Underlying Symbol'] }}</td>
-                <td>{{ row['Quantity'] }}</td>
+                <td>{{ symbol }}</td>
+                <td>{{ underlying_symbol_counts[symbol] }}</td>
+                <td class="hidden-column">{{ underlying_symbol_values[symbol]|format_currency }}</td>
+                <td class="hidden-column">{{ underlying_symbol_quantities[symbol]|round }}</td>
+                <td>{{ underlying_symbol_global_values[symbol]|format_currency }}</td>
+                <td>{{ total_dollar_values[symbol]|format_currency }}</td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
+
+    <h2>Suma Total de la Tabla Total 2</h2>
+    <p>Suma Total de Valor Global: {{ total_global_value_sum|format_currency }}</p>
+    <p>Suma Total de Total $: {{ total_total_dollar_sum|format_currency }}</p>
     
     <!-- Proporcionar enlace para descargar el archivo CSV -->
     <p><a href="{{ url_for('download_csv', filename=filename) }}" class="btn">Download CSV</a></p>
