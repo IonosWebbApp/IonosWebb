@@ -1,5 +1,3 @@
-# app.py
-
 from flask import Flask, render_template, request, redirect, url_for, send_file
 import os
 from werkzeug.utils import secure_filename
@@ -144,20 +142,44 @@ def process_csv(file_path):
     return data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_income_sum, total_dividends_sum, underlying_symbols, underlying_symbol_counts, underlying_symbol_values, underlying_symbol_quantities, underlying_symbol_global_values, total_value_sum, total_quantity_sum, total_dollar_values, total_global_value_sum, total_total_dollar_sum
 
 def create_pie_chart(symbol_dividends, output_path):
-    # Filtrar valores negativos
-    filtered_dividends = {symbol: value for symbol, value in symbol_dividends.items() if value > 0}
-    labels = list(filtered_dividends.keys())
-    sizes = list(filtered_dividends.values())
+    labels = list(symbol_dividends.keys())
+    values = list(symbol_dividends.values())
     
-    fig = px.pie(values=sizes, names=labels, title='Distribution of Dividends by Symbol', hole=0.3)
-    fig.update_traces(textinfo='percent+label', pull=[0.1 if v == max(sizes) else 0 for v in sizes])
+    df = pd.DataFrame({
+        'Símbolo': labels,
+        'Dividendos': values
+    })
+    
+    fig = px.pie(df, names='Símbolo', values='Dividendos', title='Distribución de Dividendos por Símbolo')
+    fig.update_traces(textinfo='label+percent', marker=dict(colors=['#CCCCCC', '#B0B0B0', '#999999', '#808080', '#666666', '#4C4C4C', '#333333']))
+    fig.update_layout(title_font_color='#333333', legend_title_font_color='#333333')
     fig.write_html(output_path)
 
-def get_equity_symbols(data):
-    if 'Symbol' in data.columns and 'Instrument Type' in data.columns:
-        equity_symbols = data[data['Instrument Type'] == 'Equity']['Symbol'].unique().tolist()
-        return equity_symbols
-    return []
+def create_bar_chart(symbol_total_income, output_path):
+    labels = list(symbol_total_income.keys())
+    values = list(symbol_total_income.values())
+    
+    df = pd.DataFrame({
+        'Símbolo': labels,
+        'Total Income': values
+    })
+    
+    fig = px.bar(df, x='Símbolo', y='Total Income', title='Total Income by Symbol', color='Total Income', color_continuous_scale='gray')
+    fig.update_layout(xaxis_title='Símbolo', yaxis_title='Total Income', xaxis_title_font_color='#333333', yaxis_title_font_color='#333333')
+    fig.write_html(output_path)
+
+def create_total_dollar_area_chart(total_dollar_values, output_path):
+    labels = list(total_dollar_values.keys())
+    values = list(total_dollar_values.values())
+    
+    df = pd.DataFrame({
+        'Símbolo': labels,
+        'Total $': values
+    })
+    
+    fig = px.area(df, x='Símbolo', y='Total $', title='Total $ por Símbolo', color_discrete_sequence=['#CCCCCC'])
+    fig.update_layout(xaxis_title='Símbolo', yaxis_title='Total $', xaxis_title_font_color='#333333', yaxis_title_font_color='#333333')
+    fig.write_html(output_path)
 
 @app.route('/')
 def index():
@@ -167,37 +189,67 @@ def index():
 def upload_file():
     if 'file' not in request.files:
         return redirect(request.url)
+    
     file = request.files['file']
+    
     if file.filename == '':
         return redirect(request.url)
+    
     if file and allowed_file(file.filename):
         filename = secure_filename(file.filename)
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
-        return redirect(url_for('uploaded_file', filename=filename))
+        
+        data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_income_sum, total_dividends_sum, underlying_symbols, underlying_symbol_counts, underlying_symbol_values, underlying_symbol_quantities, underlying_symbol_global_values, total_value_sum, total_quantity_sum, total_dollar_values, total_global_value_sum, total_total_dollar_sum = process_csv(file_path)
+        
+        if data is None:
+            return f"Error processing file: {dates}"
+        
+        # Crear el gráfico de pastel de distribución de dividendos por símbolo
+        pie_chart_path = os.path.join(app.config['STATIC_FOLDER'], 'pie_chart.html')
+        create_pie_chart(symbol_dividends, pie_chart_path)
+        
+        # Crear el gráfico de barras de ingresos totales por símbolo
+        bar_chart_path = os.path.join(app.config['STATIC_FOLDER'], 'bar_chart.html')
+        create_bar_chart(symbol_total_income, bar_chart_path)
+        
+        # Crear el gráfico de área de Total $ por símbolo
+        total_dollar_area_chart_path = os.path.join(app.config['STATIC_FOLDER'], 'total_dollar_area_chart.html')
+        create_total_dollar_area_chart(total_dollar_values, total_dollar_area_chart_path)
+        
+        return render_template('uploaded.html', 
+                               filename=filename, 
+                               dates=dates, 
+                               num_equity_actions=num_equity_actions, 
+                               num_equity_options=num_equity_options,
+                               symbol_counts=symbol_counts,
+                               symbol_total_stock=symbol_total_stock,
+                               symbol_total_income=symbol_total_income,
+                               symbol_total_sum=symbol_total_sum,
+                               symbol_dividends=symbol_dividends,
+                               total_income_sum=total_income_sum,
+                               total_dividends_sum=total_dividends_sum,
+                               pie_chart_url=url_for('static', filename='pie_chart.html'),
+                               bar_chart_url=url_for('static', filename='bar_chart.html'),
+                               total_dollar_area_chart_url=url_for('static', filename='total_dollar_area_chart.html'),
+                               underlying_symbols=underlying_symbols,
+                               underlying_symbol_counts=underlying_symbol_counts,
+                               underlying_symbol_values=underlying_symbol_values,
+                               underlying_symbol_quantities=underlying_symbol_quantities,
+                               underlying_symbol_global_values=underlying_symbol_global_values,
+                               total_value_sum=total_value_sum,
+                               total_quantity_sum=total_quantity_sum,
+                               total_dollar_values=total_dollar_values,
+                               total_global_value_sum=total_global_value_sum,
+                               total_total_dollar_sum=total_total_dollar_sum)
     return redirect(request.url)
-
-@app.route('/uploads/<filename>')
-def uploaded_file(filename):
-    file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    data, dates, num_equity_actions, num_equity_options, symbol_counts, symbol_total_stock, symbol_total_income, symbol_total_sum, symbol_dividends, total_income_sum, total_dividends_sum, underlying_symbols, underlying_symbol_counts, underlying_symbol_values, underlying_symbol_quantities, underlying_symbol_global_values, total_value_sum, total_quantity_sum, total_dollar_values, total_global_value_sum, total_total_dollar_sum = process_csv(file_path)
-    if data is None:
-        return f"Error processing file: {dates}"  # 'dates' contains the error message in este caso
-    equity_symbols = get_equity_symbols(data)
-    # Formatear las fechas en el formato deseado
-    for i in range(2):
-        dates[i] = dates[i].strftime('%Y-%m-%d')
-    
-    # Crear gráfico de pastel
-    pie_chart_path = os.path.join(app.config['STATIC_FOLDER'], 'dividends_pie_chart.html')
-    create_pie_chart(symbol_dividends, pie_chart_path)
-    
-    return render_template('uploaded.html', filename=filename, dates=dates, num_equity_actions=num_equity_actions, num_equity_options=num_equity_options, symbol_counts=symbol_counts, symbol_total_stock=symbol_total_stock, symbol_total_income=symbol_total_income, symbol_total_sum=symbol_total_sum, equity_symbols=equity_symbols, symbol_dividends=symbol_dividends, pie_chart_url=url_for('static', filename='dividends_pie_chart.html'), total_income_sum=total_income_sum, total_dividends_sum=total_dividends_sum, underlying_symbols=underlying_symbols, underlying_symbol_counts=underlying_symbol_counts, underlying_symbol_values=underlying_symbol_values, underlying_symbol_quantities=underlying_symbol_quantities, underlying_symbol_global_values=underlying_symbol_global_values, total_value_sum=total_value_sum, total_quantity_sum=total_quantity_sum, total_dollar_values=total_dollar_values, total_global_value_sum=total_global_value_sum, total_total_dollar_sum=total_total_dollar_sum)
 
 @app.route('/download/<filename>')
 def download_csv(filename):
     file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-    return send_file(file_path, as_attachment=True, download_name=filename)
+    if os.path.exists(file_path):
+        return send_file(file_path, as_attachment=True)
+    return "File not found", 404
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)

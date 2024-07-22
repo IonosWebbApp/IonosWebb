@@ -1,5 +1,3 @@
-<!-- uploaded.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -97,6 +95,9 @@
     <h2>Distribución de Dividendos por Símbolo</h2>
     <iframe src="{{ pie_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
     
+    <h2>Total Income by Symbol</h2>
+    <iframe src="{{ bar_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
+    
     <h2>Total 2</h2>
     <table>
         <thead>
@@ -126,6 +127,9 @@
     <h2>Suma Total de la Tabla Total 2</h2>
     <p>Suma Total de Valor Global: {{ total_global_value_sum|format_currency }}</p>
     <p>Suma Total de Total $: {{ total_total_dollar_sum|format_currency }}</p>
+    
+    <h2>Total $ por Símbolo</h2>
+    <iframe src="{{ total_dollar_area_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
     
     <!-- Proporcionar enlace para descargar el archivo CSV -->
     <p><a href="{{ url_for('download_csv', filename=filename) }}" class="btn">Download CSV</a></p>
