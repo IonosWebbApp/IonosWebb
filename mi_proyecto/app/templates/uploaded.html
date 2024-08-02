@@ -34,6 +34,135 @@
             display: none;
         }
     </style>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <script>
+        function filterData() {
+            var startDate = document.getElementById("startDate").value;
+            var endDate = document.getElementById("endDate").value;
+            var table = document.getElementById("accionesOperadasTable");
+            var table2 = document.getElementById("table2");
+            var tr = table.getElementsByTagName("tr");
+            var tr2 = table2.getElementsByTagName("tr");
+            var filteredData = {};
+            var filteredData2 = {};
+            var totalPL = 0;
+            var totalDividends = 0;
+            var totalPL2 = 0;
+            var totalDeposit = parseFloat(document.getElementById("totalDeposits").dataset.value);
+            var accionesEnProceso = 0;
+            var plAcciones = 0;
+            var opcionesEnProceso = 0;
+            var plOpciones = 0;
+            var efectivo = 0;
+
+            for (var i = 1; i < tr.length; i++) {
+                var tdDate = tr[i].getElementsByTagName("td")[0];
+                var tdSymbol = tr[i].getElementsByTagName("td")[1];
+                var tdPL = tr[i].getElementsByTagName("td")[4];
+                var tdDividends = tr[i].getElementsByTagName("td")[6];
+
+                if (tdDate && tdSymbol && tdPL && tdDividends) {
+                    var dateValue = tdDate.textContent || tdDate.innerText;
+                    var symbol = tdSymbol.textContent || tdSymbol.innerText;
+                    var plValue = parseFloat(tdPL.textContent.replace(/[()]/g, '')) || 0;
+                    var dividendValue = parseFloat(tdDividends.textContent.replace(/[()]/g, '')) || 0;
+
+                    if ((startDate === "" || new Date(dateValue) >= new Date(startDate)) &&
+                        (endDate === "" || new Date(dateValue) <= new Date(endDate))) {
+                        tr[i].style.display = "";
+                        if (!(symbol in filteredData)) {
+                            filteredData[symbol] = 0;
+                        }
+                        filteredData[symbol] += plValue;
+                        totalPL += plValue;
+                        totalDividends += dividendValue;
+                    } else {
+                        tr[i].style.display = "none";
+                    }
+                }
+            }
+
+            document.getElementById("totalPL").textContent = formatCurrency(totalPL);
+            document.getElementById("totalDividends").textContent = formatCurrency(totalDividends);
+
+            for (var j = 1; j < tr2.length; j++) {
+                var tdDate2 = tr2[j].getElementsByTagName("td")[0];
+                var tdSymbol2 = tr2[j].getElementsByTagName("td")[1];
+                var tdPL2 = tr2[j].getElementsByTagName("td")[5];
+
+                if (tdDate2 && tdSymbol2 && tdPL2) {
+                    var dateValue2 = tdDate2.textContent || tdDate2.innerText;
+                    var symbol2 = tdSymbol2.textContent || tdSymbol2.innerText;
+                    var pl2Value = parseFloat(tdPL2.textContent.replace(/[()]/g, '')) || 0;
+
+                    if ((startDate === "" || new Date(dateValue2) >= new Date(startDate)) &&
+                        (endDate === "" || new Date(dateValue2) <= new Date(endDate))) {
+                        tr2[j].style.display = "";
+                        if (!(symbol2 in filteredData2)) {
+                            filteredData2[symbol2] = 0;
+                        }
+                        filteredData2[symbol2] += pl2Value;
+                        totalPL2 += pl2Value;
+                    } else {
+                        tr2[j].style.display = "none";
+                    }
+                }
+            }
+
+            accionesEnProceso = -totalPL;
+            plAcciones = totalPL;
+            opcionesEnProceso = totalPL2;
+            plOpciones = totalPL2;
+            efectivo = accionesEnProceso + totalDividends + plAcciones + opcionesEnProceso + plOpciones - totalDeposit;
+
+            document.getElementById("totalPL2").textContent = formatCurrency(totalPL2);
+            document.getElementById("accionesEnProceso").textContent = formatCurrency(accionesEnProceso);
+            document.getElementById("plAcciones").textContent = formatCurrency(plAcciones);
+            document.getElementById("opcionesEnProceso").textContent = formatCurrency(opcionesEnProceso);
+            document.getElementById("plOpciones").textContent = formatCurrency(plOpciones);
+            document.getElementById("efectivo").textContent = formatCurrency(efectivo);
+
+            updateChart(filteredData);
+        }
+
+        function updateChart(data) {
+            var labels = Object.keys(data);
+            var values = Object.values(data).map(function(value) {
+                return Math.abs(value);
+            });
+
+            var colors = labels.map(function(label, index) {
+                return 'rgba(' + (50 + (index * 20) % 205) + ',' + (50 + (index * 20) % 205) + ',' + (50 + (index * 20) % 205) + ', 0.6)';
+            });
+
+            var chartData = [{
+                values: values,
+                labels: labels,
+                type: 'pie',
+                textinfo: 'label+percent',
+                marker: {
+                    colors: colors
+                }
+            }];
+
+            var layout = {
+                title: 'Distribución de Dividendos por Símbolo',
+                height: 600,
+                width: 800
+            };
+
+            Plotly.newPlot('dividendsPieChart', chartData, layout);
+        }
+
+        function formatCurrency(value) {
+            return value < 0 ? '(' + Math.abs(value).toLocaleString('en-US', {style: 'currency', currency: 'USD'}) + ')' :
+                value.toLocaleString('en-US', {style: 'currency', currency: 'USD'});
+        }
+
+        document.addEventListener('DOMContentLoaded', function() {
+            filterData(); // Filter table and chart on load to apply any pre-existing filter
+        });
+    </script>
 </head>
 <body>
     <h1>Uploaded CSV File: {{ filename }}</h1>
@@ -63,9 +192,14 @@
     <p>{{ num_equity_options }}</p>
     
     <h2>Acciones Operadas:</h2>
-    <table>
+    <label for="startDate">Start Date:</label>
+    <input type="date" id="startDate" onchange="filterData()">
+    <label for="endDate">End Date:</label>
+    <input type="date" id="endDate" onchange="filterData()">
+    <table id="accionesOperadasTable">
         <thead>
             <tr>
+                <th>Date</th>
                 <th>Acciones Operadas</th>
                 <th>Qty Operations</th>
                 <th>Qty Stocks</th>
@@ -77,6 +211,7 @@
         <tbody>
             {% for symbol, count in symbol_counts.items() %}
             <tr>
+                <td>{{ symbol_dates[symbol] }}</td>
                 <td>{{ symbol }}</td>
                 <td>{{ count }}</td>
                 <td>{{ symbol_total_stock[symbol]|format_currency }}</td>
@@ -89,22 +224,20 @@
     </table>
 
     <h2>Suma Total</h2>
-    <p>Suma Total de P/L: {{ total_income_sum|format_currency }}</p>
-    <p>Suma Total de Dividends: {{ total_dividends_sum|format_currency }}</p>
+    <p>Suma Total de P/L: <span id="totalPL">{{ total_income_sum|format_currency }}</span></p>
+    <p>Suma Total de Dividends: <span id="totalDividends">{{ total_dividends_sum|format_currency }}</span></p>
     
     <h2>Distribución de Dividendos por Símbolo</h2>
-    <iframe src="{{ pie_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
-    
-    <h2>Total Income by Symbol</h2>
-    <iframe src="{{ bar_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
+    <div id="dividendsPieChart"></div>
     
     <h2>Total 2</h2>
-    <table>
+    <table id="table2">
         <thead>
             <tr>
+                <th>Date</th>
                 <th>Operaciones Operadas</th>
                 <th>Qty</th>
-                <th class="hidden-column">P/L</th>
+                <th class="hidden-column">Valor Total</th>
                 <th class="hidden-column">Cantidad Total</th>
                 <th>P/L</th>
                 <th>$</th>
@@ -113,11 +246,12 @@
         <tbody>
             {% for symbol in underlying_symbols %}
             <tr>
+                <td>{{ underlying_symbol_dates[symbol] }}</td>
                 <td>{{ symbol }}</td>
                 <td>{{ underlying_symbol_counts[symbol] }}</td>
                 <td class="hidden-column">{{ underlying_symbol_values[symbol]|format_currency }}</td>
                 <td class="hidden-column">{{ underlying_symbol_quantities[symbol]|round }}</td>
-                <td>{{ underlying_symbol_global_values[symbol]|format_currency }}</td>
+                <td>{{ pl_values[symbol]|format_currency }}</td>
                 <td>{{ total_dollar_values[symbol]|format_currency }}</td>
             </tr>
             {% endfor %}
@@ -125,11 +259,49 @@
     </table>
 
     <h2>Suma Total de la Tabla Total 2</h2>
-    <p>Suma Total de Valor Global: {{ total_global_value_sum|format_currency }}</p>
-    <p>Suma Total de Total $: {{ total_total_dollar_sum|format_currency }}</p>
+    <p>Suma Total de P/L 2: <span id="totalPL2">{{ total_pl_2_sum|format_currency }}</span></p>
     
-    <h2>Total $ por Símbolo</h2>
-    <iframe src="{{ total_dollar_area_chart_url }}" width="100%" height="600px" frameborder="0"></iframe>
+    <h2>Total Depósito</h>
+    <p>Total Depósito: <span id="totalDeposits" data-value="{{ total_deposits }}">{{ total_deposits|format_currency }}</span></p>
+    
+    <h2>Resumen Financiero</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Concepto</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Acciones en Proceso</td>
+                <td><span id="accionesEnProceso">{{ acciones_en_proceso|format_currency }}</span></td>
+            </tr>
+            <tr>
+                <td>Total Dividendos</td>
+                <td><span id="totalDividends">{{ total_dividends|format_currency }}</span></td>
+            </tr>
+            <tr>
+                <td>P/L Acciones</td>
+                <td><span id="plAcciones">{{ pl_acciones|format_currency }}</span></td>
+            </tr>
+            <tr>
+                <td>Opciones En Proceso</td>
+                <td><span id="opcionesEnProceso">{{ total_opciones_en_proceso|format_currency }}</span></td>
+            </tr>
+            <tr>
+                <td>P/L Opciones</td>
+                <td><span id="plOpciones">{{ total_pl_opciones|format_currency }}</span></td>
+            </tr>
+            <tr>
+                <td>Efectivo</td>
+                <td><span id="efectivo">{{ efectivo|format_currency }}</span></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Gráfico de Resumen Financiero</h2>
+    <iframe src="{{ pie_chart_url_resumen }}" width="100%" height="600px" frameborder="0"></iframe>
     
     <!-- Proporcionar enlace para descargar el archivo CSV -->
     <p><a href="{{ url_for('download_csv', filename=filename) }}" class="btn">Download CSV</a></p>

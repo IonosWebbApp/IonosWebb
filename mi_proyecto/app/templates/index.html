@@ -1,56 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="utf-8">
-    <title>Subir archivo CSV</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f4;
-            padding: 20px;
-            text-align: center;
-        }
-        h1 {
-            color: #333;
-        }
-        form {
-            margin-top: 20px;
-        }
-        input[type="file"] {
-            padding: 10px;
-            border: 2px solid #007bff;
-            border-radius: 5px;
-            background-color: #fff;
-            font-size: 16px;
-            color: #333;
-            transition: border-color 0.3s;
-        }
-        input[type="file"]:focus {
-            outline: none;
-            border-color: #0056b3;
-        }
-        input[type="submit"] {
-            margin-top: 10px;
+        .btn {
+            display: inline-block;
             padding: 10px 20px;
-            background-color: #007bff;
+            font-size: 16px;
             color: #fff;
+            background-color: #007bff;
             border: none;
             border-radius: 5px;
-            font-size: 16px;
+            text-decoration: none;
             cursor: pointer;
             transition: background-color 0.3s;
         }
-        input[type="submit"]:hover {
+        .btn:hover {
             background-color: #0056b3;
         }
     </style>
 </head>
 <body>
-    <h1>Subir archivo CSV</h1>
-    <form method="post" action="/upload" enctype="multipart/form-data">
+    <h1>Welcome, {{ current_user.username }}!</h1>
+    <p><a href="{{ url_for('logout') }}" class="btn">Logout</a></p>
+    {% if current_user.role == 'admin' %}
+    <p><a href="{{ url_for('admin') }}" class="btn">Admin Panel</a></p>
+    <p><a href="{{ url_for('admin_files') }}" class="btn">View Uploaded Files</a></p>
+    {% endif %}
+    <h2>Upload CSV File</h2>
+    <form action="{{ url_for('upload_file') }}" method="post" enctype="multipart/form-data">
         <input type="file" name="file">
-        <br>
-        <input type="submit" value="Subir">
+        <input type="submit" value="Upload" class="btn">
     </form>
 </body>
 </html>
